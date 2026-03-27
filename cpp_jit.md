@@ -101,7 +101,7 @@ Modern ML systems rely heavily on JIT techniques, usually via IR-based staged lo
 - [**Halide**](https://halide-lang.org/) and [**TVM**](https://tvm.apache.org/) generate specialized kernels from scheduling and IR representations, then JIT or AOT compile target code.
 - [**JAX/XLA**](https://jax.readthedocs.io/en/latest/) traces host-language programs into graph-level IR, performs target-aware optimization, and lowers to native code.
 - [**MLIR-based pipelines**](https://mlir.llvm.org/) provide multi-level IRs to separate frontend semantics from backend lowering and runtime specialization.
-- [**CUDA TileIR**](https://docs.nvidia.com/cuda/tile-ir/latest/) [[11]](#ref-11): NVIDIA's TileIR exposes a higher-level abstraction for composing and specializing GPU kernels at the level of tiles and tensor operations. It is explicitly designed to be generated and lowered at runtime, enabling Python-level authoring with kernel specialization deferred to JIT time, without re-incurring the full cost of high-level semantic analysis per specialization.
+- [**CUDA TileIR**](https://docs.nvidia.com/cuda/tile-ir/latest/): NVIDIA's TileIR exposes a higher-level abstraction for composing and specializing GPU kernels at the level of tiles and tensor operations. It is explicitly designed to be generated and lowered at runtime, enabling Python-level authoring with kernel specialization deferred to JIT time, without re-incurring the full cost of high-level semantic analysis per specialization.
 
 Most of these systems are DSL- or framework-centric rather than C++-centric, and crossing the boundary between C++ and framework IRs can lose type and semantic information.
 
@@ -120,7 +120,7 @@ Existing practice establishes four facts:
 - Runtime compilation is already essential in production C++-adjacent systems.
 - Current solutions are fragmented across compiler, vendor, and framework boundaries.
 - The most successful systems separate AOT preparation from low-latency JIT specialization, usually through a portable IR, with CUDA TileIR being a recent and concrete illustration of this pattern.
-- ML-centric authoring is actively migrating away from C++ [[12]](#ref-12) toward Python-based JIT ecosystems partly because C++ lacks a cohesive runtime compilation model — the performance substrate remains C++/LLVM, but the productive authoring layer does not.
+- ML-centric authoring is actively migrating away from C++ [[11]](#ref-11) toward Python-based JIT ecosystems partly because C++ lacks a cohesive runtime compilation model — the performance substrate remains C++/LLVM, but the productive authoring layer does not.
 
 The standardization opportunity is to provide portable C++ abstractions for JIT specialization that the ecosystem already depends on — and to do so before C++ loses its relevance as an authoring language in these domains.
 
@@ -199,9 +199,7 @@ This paper was written by the authors with AI-assistance.
 
 <a id="ref-10"></a>[10] Hal Finkel (Argonne National Laboratory). "ClangJIT: Embedding C++ Runtime Compilation in C++" (P1609R1). Proposal to the C++ Standards Committee. https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1609r1.html
 
-<a id="ref-11"></a>[11] NVIDIA Corporation. "CUDA TileIR." In *CUDA Toolkit Documentation*. https://docs.nvidia.com/cuda/tile-ir/latest/
-
-<a id="ref-12"></a>[12] NVIDIA Developer Blog. "Bridging the CUDA C++ Ecosystem and Python Developers with Numbast." https://developer.nvidia.com/blog/bridging-the-cuda-c-ecosystem-and-python-developers-with-numbast/
+<a id="ref-11"></a>[11] NVIDIA Developer Blog. "Bridging the CUDA C++ Ecosystem and Python Developers with Numbast." https://developer.nvidia.com/blog/bridging-the-cuda-c-ecosystem-and-python-developers-with-numbast/
 
 # Acknowledgements
 - Mark Hoemmen (NVIDIA) for providing feedback and helping review the paper
