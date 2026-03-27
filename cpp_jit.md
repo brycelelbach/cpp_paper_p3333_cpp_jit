@@ -204,4 +204,4 @@ This paper was written by the authors with AI-assistance.
 [12] NVIDIA Developer Blog. "Bridging the CUDA C++ Ecosystem and Python Developers with Numbast." https://developer.nvidia.com/blog/bridging-the-cuda-c-ecosystem-and-python-developers-with-numbast/
 
 # Acknowledgements
-- Mark Hoemmen for providing feedback and helping review the paper
+- Mark Hoemmen (NVIDIA) for providing feedback and helping review the paper
