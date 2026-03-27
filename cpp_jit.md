@@ -55,9 +55,9 @@ These runtime conditions can directly affect generated code quality:
 
 - **Memory access pattern specialization**: Stride patterns, padding, and alignment may not be known until JIT time, enabling the compiler to emit vectorized loads and eliminate bounds checks that an AOT compiler must conservatively retain.
 
-## Code Generation as a First-Class Operation
+## Runtime Code Generation
 
-In many modern systems, code generation is not an edge case — it *is* the work. A query engine does not ship a precompiled function for every possible SQL query; it compiles a new function for every query it receives [1][2][3]. A shader compiler does not ship every shader a game might need; it compiles and optimizes shaders from descriptors provided by the game at runtime [4][5][6]. A ML serving runtime does not ship a kernel for every possible model graph and hardware combination; it generates and compiles kernels on demand when a model is first loaded or when input shapes change [7][8][9].
+A query engine does not ship a precompiled function for every possible SQL query; it compiles a new function for every query it receives [1][2][3]. A shader compiler does not ship every shader a game might need; it compiles and optimizes shaders from descriptors provided by the game at runtime [4][5][6]. A ML serving runtime does not ship a kernel for every possible model graph and hardware combination; it generates and compiles kernels on demand when a model is first loaded or when input shapes change [7][8][9].
 
 In these systems, the latency and throughput of the JIT compilation pipeline is itself a performance-critical concern. The overhead of invoking an external compiler process, the lack of integration with the application's memory model, and the loss of type information at the C++ boundary all impose real costs.
 
@@ -96,7 +96,7 @@ Limitations:
 
 ## ML Compiler Stacks and Domain-Specific Systems
 
-Modern ML systems rely heavily on JIT techniques, usually via IRs and staged lowering pipelines.
+Modern ML systems rely heavily on JIT techniques, usually via IR-based staged lowering pipelines that transform high-level program representations into progressively lower-level IR and finally target-specific code.
 
 - [**Halide**](https://halide-lang.org/) and [**TVM**](https://tvm.apache.org/) generate specialized kernels from scheduling and IR representations, then JIT or AOT compile target code.
 - [**JAX/XLA**](https://jax.readthedocs.io/en/latest/) traces host-language programs into graph-level IR, performs target-aware optimization, and lowers to native code.
@@ -113,12 +113,6 @@ ML-centric applications are increasingly written in Python or Python-JIT-first f
 
 This trend may weaken C++'s position as an authoring language in some numerical and ML workflows. Stronger and more portable JIT facilities could help C++ remain a practical authoring option in these domains.
 
-## Domain-Specific C++ Techniques
-
-C++ libraries often emulate JIT-like behavior with expression templates, embedded DSLs, and runtime dispatch tables [13]. These techniques can defer evaluation, but they typically execute through precompiled engines and cannot generally emit new machine code at runtime.
-
-They are effective engineering patterns, yet they do not replace a true JIT facility when runtime code generation is required.
-
 ## Synthesis
 
 Existing practice establishes four facts:
@@ -128,7 +122,7 @@ Existing practice establishes four facts:
 - The most successful systems separate AOT preparation from low-latency JIT specialization, usually through a portable IR, with CUDA TileIR being a recent and concrete illustration of this pattern.
 - ML-centric authoring is actively migrating away from C++ [12] toward Python-based JIT ecosystems partly because C++ lacks a cohesive runtime compilation model — the performance substrate remains C++/LLVM, but the productive authoring layer does not.
 
-The standardization opportunity is therefore not to invent JIT from scratch, but to provide portable C++ abstractions for capabilities that the ecosystem already depends on — and to do so before C++ loses its relevance as an authoring language in these domains.
+The standardization opportunity is to provide portable C++ abstractions for JIT specialization that the ecosystem already depends on — and to do so before C++ loses its relevance as an authoring language in these domains.
 
 # Problem Statement
 
@@ -149,7 +143,7 @@ None of these is portable. Each ties the application to a specific compiler, OS,
 
 All current approaches require exiting the C++ type system at the JIT boundary. Whether the interface is a source-string, an IR module, or a vendor API, the host program and the JIT-compiled code communicate through raw function pointers, `void*` buffers, or serialized descriptors. The compiler cannot verify that caller and callee agree on the type of data being passed. Template instantiations, type aliases, concepts, and overload resolution do not cross this boundary. Each specialization is an opaque blob from the host program's perspective. This often leads to type mismatches between host and JIT code that a standard solution with integrated type representation could eliminate entirely.
 
-## Two-Phase Cost
+## Lack of Incremental Specialization
 
 Source-string JIT approaches (NVRTC, clang-repl invoked programmatically, `system()` + `dlopen`) impose the full cost of the C++ frontend on every compilation request: source text must be parsed, template metaprograms must be re-instantiated, semantic analysis must be re-performed, and target-independent optimization passes must re-run. For code that is specialized only in its final code-generation phase — differing only in a tile size, a data type, or a target architecture — this repeated frontend work is pure waste.
 
@@ -208,8 +202,6 @@ This paper was written by the authors with AI-assistance.
 [11] NVIDIA Corporation. "CUDA TileIR." In *CUDA Toolkit Documentation*. https://docs.nvidia.com/cuda/tile-ir/latest/
 
 [12] NVIDIA Developer Blog. "Bridging the CUDA C++ Ecosystem and Python Developers with Numbast." https://developer.nvidia.com/blog/bridging-the-cuda-c-ecosystem-and-python-developers-with-numbast/
-
-[13] NVIDIA Developer Blog. "Efficient Transforms in cuDF using JIT Compilation." https://developer.nvidia.com/blog/efficient-transforms-in-cudf-using-jit-compilation/
 
 # Acknowledgements
 - Mark Hoemmen for providing feedback and helping review the paper
