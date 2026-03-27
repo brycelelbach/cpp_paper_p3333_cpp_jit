@@ -105,7 +105,7 @@ These runtime conditions can directly affect generated code quality:
 In many modern systems, code generation is not an edge case — it *is* the
 work. A query engine does not ship a precompiled function for every possible
 SQL query; it compiles a new function for every query it receives. A shader
-compiler does not ship every shader a game might need; it compiles and optimises shaders
+compiler does not ship every shader a game might need; it compiles and optimizes shaders
 from descriptors provided by the game at runtime. A ML serving runtime does
 not ship a kernel for every possible model graph and hardware combination;
 it generates and compiles kernels on demand when a model is first loaded or
@@ -130,7 +130,7 @@ cannot express.
 
 Runtime compilation is already widely deployed across the C++ ecosystem, but
 it appears through a collection of incompatible tools and programming models.
-This section surveys the most relevant existing practice and the tradeoffs each
+This section surveys the most relevant existing practice and the trade-offs each
 approach implies.
 
 ## LLVM and Clang-Based JIT
@@ -146,7 +146,7 @@ Clang-based interactive tooling
 [Cling](https://cling.readthedocs.io/en/latest/)) demonstrates that C++ itself
 can be parsed and incrementally compiled at runtime. These systems are valuable
 proof points, but they are not standardized, and their embedding interfaces are
-implementation-specific. Whilst Clang provides high-quality and low-latency
+implementation-specific. While Clang provides high-quality and low-latency
 JIT optimization and code generation for many targets, it is tightly coupled to
 LLVM/Clang
 infrastructure, uses no C++-level abstractions portable to non-LLVM compilers,
@@ -158,7 +158,6 @@ is relevant prior art that explores integrating JIT compilation directly into
 C++ workflows, including syntax and semantic issues specific to C++. It also
 highlights open questions around usability, integration, and incremental
 latency-sensitive workflows.
-
 
 ## GPU and Accelerator Runtime Compilation
 
@@ -269,8 +268,7 @@ authoring language in these domains.
 C++ has no standard facility for just-in-time compilation. This is not a minor
 gap. It is a structural deficiency that forces every application requiring
 runtime code generation to build or adopt a private, non-portable solution, and
-it contributes to migration of some ML application
-authoring away from C++.
+it contributes to the migration of some ML application authoring away from C++.
 
 ## No Standard Abstraction
 
@@ -281,7 +279,8 @@ C++ and depend on one of the following:
 
 - Compiler-specific C APIs (`libgccjit`, LLVM ORC JIT).
 - Vendor-specific GPU runtime compilation APIs (NVRTC, OpenCL, SYCL).
-- OS-specific dynamic loading primitives (`dlopen`/`LoadLibrary`) combined with process spawning
+- OS-specific dynamic loading primitives (`dlopen`/`LoadLibrary`) combined with
+  process spawning.
 - Embedding a language runtime (LLVM, a scripting language, a DSL engine)
   and communicating across the type-system boundary through void pointers or
   string serialization.
@@ -300,10 +299,8 @@ raw function pointers, `void*` buffers, or serialized descriptors. The
 compiler cannot verify that caller and callee agree on the type of data being
 passed. Template instantiations, type aliases, concepts, and overload
 resolution do not cross this boundary. Each specialization is an opaque blob
-from the host program's perspective.
-
-This creates a persistent class of bugs - type mismatches between host and
-JIT code — that a standard solution with integrated type representation could
+from the host program's perspective which causes type mismatches between host and JIT
+code that a standard solution with integrated type representation could
 eliminate entirely.
 
 ## Two-Phase Cost
@@ -337,8 +334,9 @@ and every application solves the problem independently. The costs compound:
 - **Tooling blindness**: debuggers, sanitizers, profilers, and static analysis
   tools have no standard way to understand JIT-compiled code, symbol
   resolution, or the provenance of dynamically generated machine code.
-- **Duplicated effort**: NVRTC, ORC JIT, SYCL, and in-house JIT layers all solve the same underlying problem — runtime code
-  specialization - without interoperability or shared abstractions.
+- **Duplicated effort**: NVRTC, ORC JIT, SYCL, and in-house JIT layers all
+  solve the same underlying problem - runtime code specialization - without
+  interoperability or shared abstractions.
 
 ## The Ecosystem Consequence
 
@@ -358,15 +356,13 @@ aware manner.
 
 # Intended Outcomes
 
-- Establishes consensus that portable, first-class JIT support is an important
+- Establish consensus that portable, first-class JIT support is an important
   gap for modern C++ workloads.
-- Captures shared terminology and problem framing that can be reused in future
-  design papers.
-- Identifies the key constraints a future solution must satisfy (portability,
+- Identify the key constraints a future solution must satisfy (portability,
   type-safety, support for incremental compilation, and tooling visibility).
-- Documents existing practice and prior art sufficiently to justify exploration.
-- Provides a clear basis for follow-on proposal work, without committing this
-  paper to a specific technical interface.
+- Document existing practice and prior art sufficiently to justify exploration.
+- Provide a clear basis for follow-on proposal work, without committing this
+  paper to a specific technical specification.
 
 
 ## Authoring Note
