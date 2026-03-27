@@ -57,7 +57,7 @@ These runtime conditions can directly affect generated code quality:
 
 ## Code Generation as a First-Class Operation
 
-In many modern systems, code generation is not an edge case — it *is* the work. A query engine does not ship a precompiled function for every possible SQL query; it compiles a new function for every query it receives. A shader compiler does not ship every shader a game might need; it compiles and optimizes shaders from descriptors provided by the game at runtime. A ML serving runtime does not ship a kernel for every possible model graph and hardware combination; it generates and compiles kernels on demand when a model is first loaded or when input shapes change.
+In many modern systems, code generation is not an edge case — it *is* the work. A query engine does not ship a precompiled function for every possible SQL query; it compiles a new function for every query it receives [1][2][3]. A shader compiler does not ship every shader a game might need; it compiles and optimizes shaders from descriptors provided by the game at runtime [4][5][6]. A ML serving runtime does not ship a kernel for every possible model graph and hardware combination; it generates and compiles kernels on demand when a model is first loaded or when input shapes change [7][8][9].
 
 In these systems, the latency and throughput of the JIT compilation pipeline is itself a performance-critical concern. The overhead of invoking an external compiler process, the lack of integration with the application's memory model, and the loss of type information at the C++ boundary all impose real costs.
 
@@ -75,7 +75,7 @@ LLVM provides JIT infrastructure through [ORC JIT](https://llvm.org/docs/ORCv2.h
 
 Clang-based interactive tooling ([`clang-repl`](https://clang.llvm.org/docs/ClangRepl.html), [Cling](https://cling.readthedocs.io/en/latest/)) demonstrates that C++ itself can be parsed and incrementally compiled at runtime. These systems are valuable proof points, but they are not standardized, and their embedding interfaces are implementation-specific. While Clang provides high-quality and low-latency JIT optimization and code generation for many targets, it is tightly coupled to LLVM/Clang infrastructure, uses no C++-level abstractions portable to non-LLVM compilers, and operates on string source code and LLVM IR.
 
-ClangJIT [P1609](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1609r1.html) is relevant prior art that explores integrating JIT compilation directly into C++ workflows, including syntax and semantic issues specific to C++. It also highlights open questions around usability, integration, and incremental latency-sensitive workflows.
+ClangJIT [10] is relevant prior art that explores integrating JIT compilation directly into C++ workflows, including syntax and semantic issues specific to C++. It also highlights open questions around usability, integration, and incremental latency-sensitive workflows.
 
 ## GPU and Accelerator Runtime Compilation
 
@@ -101,7 +101,7 @@ Modern ML systems rely heavily on JIT techniques, usually via IRs and staged low
 - [**Halide**](https://halide-lang.org/) and [**TVM**](https://tvm.apache.org/) generate specialized kernels from scheduling and IR representations, then JIT or AOT compile target code.
 - [**JAX/XLA**](https://jax.readthedocs.io/en/latest/) traces host-language programs into graph-level IR, performs target-aware optimization, and lowers to native code.
 - [**MLIR-based pipelines**](https://mlir.llvm.org/) provide multi-level IRs to separate frontend semantics from backend lowering and runtime specialization.
-- [**CUDA TileIR**](https://docs.nvidia.com/cuda/tile-ir/latest/): NVIDIA's TileIR exposes a higher-level abstraction for composing and specializing GPU kernels at the level of tiles and tensor operations. It is explicitly designed to be generated and lowered at runtime, enabling Python-level authoring with kernel specialization deferred to JIT time, without re-incurring the full cost of high-level semantic analysis per specialization.
+- [**CUDA TileIR**](https://docs.nvidia.com/cuda/tile-ir/latest/) [11]: NVIDIA's TileIR exposes a higher-level abstraction for composing and specializing GPU kernels at the level of tiles and tensor operations. It is explicitly designed to be generated and lowered at runtime, enabling Python-level authoring with kernel specialization deferred to JIT time, without re-incurring the full cost of high-level semantic analysis per specialization.
 
 Most of these systems are DSL- or framework-centric rather than C++-centric, and crossing the boundary between C++ and framework IRs can lose type and semantic information.
 
@@ -115,7 +115,7 @@ This trend may weaken C++'s position as an authoring language in some numerical 
 
 ## Domain-Specific C++ Techniques
 
-C++ libraries often emulate JIT-like behavior with expression templates, embedded DSLs, and [runtime dispatch tables](https://developer.nvidia.com/blog/efficient-transforms-in-cudf-using-jit-compilation/). These techniques can defer evaluation, but they typically execute through precompiled engines and cannot generally emit new machine code at runtime.
+C++ libraries often emulate JIT-like behavior with expression templates, embedded DSLs, and runtime dispatch tables [13]. These techniques can defer evaluation, but they typically execute through precompiled engines and cannot generally emit new machine code at runtime.
 
 They are effective engineering patterns, yet they do not replace a true JIT facility when runtime code generation is required.
 
@@ -126,7 +126,7 @@ Existing practice establishes four facts:
 - Runtime compilation is already essential in production C++-adjacent systems.
 - Current solutions are fragmented across compiler, vendor, and framework boundaries.
 - The most successful systems separate AOT preparation from low-latency JIT specialization, usually through a portable IR, with CUDA TileIR being a recent and concrete illustration of this pattern.
-- ML-centric authoring is actively [migrating away from C++](https://developer.nvidia.com/blog/bridging-the-cuda-c-ecosystem-and-python-developers-with-numbast/) toward Python-based JIT ecosystems partly because C++ lacks a cohesive runtime compilation model — the performance substrate remains C++/LLVM, but the productive authoring layer does not.
+- ML-centric authoring is actively migrating away from C++ [12] toward Python-based JIT ecosystems partly because C++ lacks a cohesive runtime compilation model — the performance substrate remains C++/LLVM, but the productive authoring layer does not.
 
 The standardization opportunity is therefore not to invent JIT from scratch, but to provide portable C++ abstractions for capabilities that the ecosystem already depends on — and to do so before C++ loses its relevance as an authoring language in these domains.
 
@@ -182,6 +182,34 @@ The problem C++ needs to solve is not implementing a JIT engine. It is providing
 ## Authoring Note
 
 This paper was written by the authors with AI-assistance.
+
+# References
+
+[1] Thomas Neumann. "Efficiently Compiling Efficient Query Plans for Modern Hardware." *Proceedings of the VLDB Endowment*, 4(9), 2011. https://www.vldb.org/pvldb/vol4/p539-neumann.pdf
+
+[2] PostgreSQL Global Development Group. "What Is JIT compilation?" In *PostgreSQL 18 Documentation*, Chapter 30.1. https://www.postgresql.org/docs/current/jit-reason.html
+
+[3] Apache Spark Project. "Whole stage codegen" (SPARK-12795). Issue tracker, Apache Software Foundation. https://issues.apache.org/jira/browse/SPARK-12795
+
+[4] The Khronos Group. "vkCreateGraphicsPipelines(3)." In *Vulkan API Reference*. https://docs.vulkan.org/refpages/latest/refpages/source/vkCreateGraphicsPipelines.html
+
+[5] Unity Technologies. "Shader compilation." In *Unity 6.3 User Manual*. https://docs.unity3d.com/Manual/shader-compilation.html
+
+[6] Microsoft Corporation. "Compiling shaders." In *Direct3D HLSL Documentation*. https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-part1
+
+[7] Microsoft Corporation. "TensorRT Execution Provider." In *ONNX Runtime Documentation*. https://onnxruntime.ai/docs/execution-providers/TensorRT-ExecutionProvider.html
+
+[8] NVIDIA Corporation. "Architecture Overview." In *TensorRT Developer Guide*. https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html
+
+[9] Meta Platforms, Inc. "torch.compile." In *PyTorch Documentation*, Stable Release. https://docs.pytorch.org/docs/stable/generated/torch.compile.html
+
+[10] Hal Finkel (Argonne National Laboratory). "ClangJIT: Embedding C++ Runtime Compilation in C++" (P1609R1). Proposal to the C++ Standards Committee. https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1609r1.html
+
+[11] NVIDIA Corporation. "CUDA TileIR." In *CUDA Toolkit Documentation*. https://docs.nvidia.com/cuda/tile-ir/latest/
+
+[12] NVIDIA Developer Blog. "Bridging the CUDA C++ Ecosystem and Python Developers with Numbast." https://developer.nvidia.com/blog/bridging-the-cuda-c-ecosystem-and-python-developers-with-numbast/
+
+[13] NVIDIA Developer Blog. "Efficient Transforms in cuDF using JIT Compilation." https://developer.nvidia.com/blog/efficient-transforms-in-cudf-using-jit-compilation/
 
 # Acknowledgements
 - Mark Hoemmen for providing feedback and helping review the paper
