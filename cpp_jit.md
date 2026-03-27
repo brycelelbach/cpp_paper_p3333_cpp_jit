@@ -11,11 +11,6 @@ author:
 toc: true
 ---
 
-<!-- hardware is now getting more specialized; there used to be a compute GPU,
-but there is now compute CPU and compute GPU -->
-<!-- provide references for claims -->
-<!-- Make the paper smaller and shorter -->
-
 # Authors
 
 * Bryce Adelstein Lelbach (he/him/his), NVIDIA, `brycelelbach@gmail.com`
@@ -27,8 +22,8 @@ but there is now compute CPU and compute GPU -->
 C++ needs first-class support for just-in-time (JIT) compilation. Machine
 learning workloads increasingly require JIT compilation of compute kernels to
 specialize code for complex and heterogeneous compute resources like GPUs and
-LPUs. This paper surveys the landscape, examines existing practice, and proposes
-a direction for standardizing JIT compilation facilities in C++.
+LPUs. This paper surveys the landscape, examines existing practice, and
+discusses the need for standardizing JIT compilation facilities in C++.
 
 # Introduction
 
@@ -38,7 +33,7 @@ choices are often known only at execution time. In these cases, applications do
 not just choose among precompiled variants; they synthesize and compile new
 functions at runtime.
 
-This pattern now appears across ML, scientific computing, query engines, and
+This pattern appears across ML, scientific computing, query engines, and
 graphics pipelines. JIT compilation is therefore not an edge feature but a core
 execution model for high-performance heterogeneous systems.
 
@@ -60,7 +55,7 @@ performance characteristics.
 
 AOT compilation cannot produce a single binary that is simultaneously optimal
 for all of these targets. The set of hardware targets is not closed; new
-accelerators with vastly different configurations are released continuously.
+accelerators with different subsystem hierarchies are released continuously.
 More fundamentally, the *optimal code* for a given operation is not a fixed
 function of the hardware alone. It also depends on runtime parameters that the
 AOT compiler cannot observe.
@@ -70,8 +65,7 @@ AOT compiler cannot observe.
 Consider a ML framework that wishes to ship optimized kernels for matrix
 multiplication across NVIDIA, AMD, and Intel GPUs. For each architecture,
 there may be dozens of variants specialized for different tile sizes, data
-types (`float8`, `bfloat8`, `nvfp8`, `int8`, `uint8`, `float16`, `bfloat16`,
-`nvfp16`, `int16`, `uint16`), and memory layouts. The number of kernels grows
+types (`float8`, `bfloat8`, `nvfp8`, `int8`, `uint8`), and memory layouts. The number of kernels grows
 multiplicatively. Compiled GPU kernels are not small; a single highly optimized
 GEMM kernel may be hundreds of kilobytes of device code. Shipping thousands of
 such variants adds up to gigabytes of device code in the binary, most of which
@@ -79,7 +73,7 @@ will never execute on any given deployment.
 
 Instead of shipping all possible specializations ahead of time, the binary
 ships a compact, portable JIT-compilable representation of the computation
-(e.g., IR, parameterized source, DSL) and generates only the variant that is
+(e.g. IR, parameterized source, DSL) and generates only the variant that is
 actually needed, on the hardware that is actually present, with the parameters
 that are actually in use. The deployed binary grows with the number of
 *algorithms*, not the number of *specializations*.
@@ -91,7 +85,7 @@ learning, tensor shapes (batch size, sequence length, channel count) are
 determined by user input, model configuration, or middleware decisions made
 long after the binary is built.
 
-These runtime conditions directly affect the optimal generated code:
+These runtime conditions can directly affect generated code quality:
 
 - **Kernel fusion**: Fusing two adjacent operations into a
   single kernel avoids writing intermediates to global memory, which can be
@@ -109,9 +103,9 @@ These runtime conditions directly affect the optimal generated code:
 ## Code Generation as a First-Class Operation
 
 In many modern systems, code generation is not an edge case — it *is* the
-work. A query engine does not ship a pre-compiled function for every possible
+work. A query engine does not ship a precompiled function for every possible
 SQL query; it compiles a new function for every query it receives. A shader
-compiler does not ship every shader a game might need; it compiles shaders
+compiler does not ship every shader a game might need; it compiles and optimises shaders
 from descriptors provided by the game at runtime. A ML serving runtime does
 not ship a kernel for every possible model graph and hardware combination;
 it generates and compiles kernels on demand when a model is first loaded or
@@ -126,10 +120,9 @@ and the loss of type information at the C++ boundary all impose real costs.
 
 C++ already has powerful compile-time computation through templates,
 `constexpr`/`consteval`/`constinit`, and reflection. These mechanisms are
-valuable, but they specialize at *compile time*
-of the C++ program, not at runtime. They cannot specialize code for a GPU
-architecture discovered when a device driver is queried, for a tensor shape
-read from a file, or for a sparsity pattern computed from runtime data.
+valuable, but they specialize at *compile time* of the C++ program, not at
+runtime. They cannot specialize code for a runtime-determined computation or
+hardware configuration.
 JIT compilation is a qualitatively different capability that C++ currently
 cannot express.
 
@@ -153,17 +146,19 @@ Clang-based interactive tooling
 [Cling](https://cling.readthedocs.io/en/latest/)) demonstrates that C++ itself
 can be parsed and incrementally compiled at runtime. These systems are valuable
 proof points, but they are not standardized, and their embedding interfaces are
-implementation-specific.
+implementation-specific. Whilst Clang provides high-quality and low-latency
+JIT optimization and code generation for many targets, it is tightly coupled to
+LLVM/Clang
+infrastructure, uses no C++-level abstractions portable to non-LLVM compilers,
+and operates on string source code and LLVM IR.
 
 ClangJIT
 [P1609](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1609r1.html)
 is relevant prior art that explores integrating JIT compilation directly into
-C++ workflows, including syntax and semantic issues specific to C++.
+C++ workflows, including syntax and semantic issues specific to C++. It also
+highlights open questions around usability, integration, and incremental
+latency-sensitive workflows.
 
-Whilst Clang provides high-quality and low-latency optimization and code
-generation for many targets, it is tightly coupled to LLVM/Clang
-infrastructure, uses no C++-level abstractions portable to non-LLVM compilers,
-and operates on string source code and LLVM IR.
 
 ## GPU and Accelerator Runtime Compilation
 
@@ -185,12 +180,12 @@ single-source deployments across many accelerator targets.
 
 Limitations:
 
-- Vendor or ecosystem lock-in at API and toolchain boundaries.
-- Runtime source compilation can impose substantial latency.
+- Vendor- or ecosystem-specialized API and toolchain boundaries.
 - Weak integration with portable C++ type-level abstractions.
-- Graphics APIs are predominantly shader-language or IR-string driven (GLSL,
+- Graphics APIs are predominantly shader-language or IR-driven (GLSL,
   HLSL, SPIR-V toolchains).
-- Using full C++ as the frontend for these pipelines is uncommon in practice
+- Using full C++ as the frontend for these pipelines is uncommon in
+  latency-sensitive applications
   because repeated runtime specialization would require repeatedly paying
   frontend costs (template instantiation, semantic analysis, AST construction).
 
@@ -230,24 +225,23 @@ relevant because they frequently lower into LLVM or C++-adjacent backend
 toolchains.
 
 ML-centric applications are increasingly written in Python or Python-JIT-first
-frameworks rather than C++, not for reasons of raw numerical performance (the
-backends are C++ and LLVM) but because Python ecosystems make it natural to
+frameworks rather than C++, partly because Python ecosystems make it natural to
 express runtime specialization. Model code, kernel fusion strategy, and
 operator dispatch logic that would previously have been written in C++ are now
 written in Python to take advantage of the extensive JIT infrastructure. The
 C++ layer is increasingly relegated to a fixed performance substrate rather
 than a productive authoring surface.
 
-This represents an ongoing and accelerating erosion of C++'s position in
-numerical and ML computing. First-class JIT support in C++ is not a luxury
-feature; it is a prerequisite for C++ remaining a relevant authoring language
-in these domains.
+This trend may weaken C++'s position as an authoring language in some numerical
+and ML workflows. Stronger and more portable JIT facilities could help C++
+remain a practical authoring option in these domains.
 
 ## Domain-Specific C++ Techniques
 
 C++ libraries often emulate JIT-like behavior with expression templates,
-embedded DSLs, and runtime dispatch tables. These techniques can defer
-evaluation and improve specialization, but they typically execute through
+embedded DSLs, and
+[runtime dispatch tables](https://developer.nvidia.com/blog/efficient-transforms-in-cudf-using-jit-compilation/).
+These techniques can defer evaluation, but they typically execute through
 precompiled engines and cannot generally emit new machine code at runtime.
 
 They are effective engineering patterns, yet they do not replace a true JIT
@@ -261,12 +255,9 @@ Existing practice establishes four facts:
 - Current solutions are fragmented across compiler, vendor, and framework
   boundaries.
 - The most successful systems separate AOT preparation from low-latency JIT
-  specialization, usually through a portable intermediate representation —
-  CUDA TileIR being a recent and concrete illustration of this pattern.
-- ML-centric authoring is actively migrating away from C++ toward Python-based
-  JIT ecosystems precisely because C++ lacks a cohesive runtime compilation
-  model — the performance substrate remains C++/LLVM, but the productive
-  authoring layer does not.
+  specialization, usually through a portable IR - CUDA TileIR being a recent
+  and concrete illustration of this pattern.
+- ML-centric authoring is actively [migrating away from C++](https://developer.nvidia.com/blog/bridging-the-cuda-c-ecosystem-and-python-developers-with-numbast/) toward Python-based JIT ecosystems partly because C++ lacks a cohesive runtime compilation model — the performance substrate remains C++/LLVM, but the productive authoring layer does not.
 
 The standardization opportunity is therefore not to invent JIT from scratch,
 but to provide portable C++ abstractions for capabilities that the ecosystem
@@ -278,22 +269,19 @@ authoring language in these domains.
 C++ has no standard facility for just-in-time compilation. This is not a minor
 gap. It is a structural deficiency that forces every application requiring
 runtime code generation to build or adopt a private, non-portable solution, and
-it is one of the primary drivers behind the migration of ML application
+it contributes to migration of some ML application
 authoring away from C++.
 
 ## No Standard Abstraction
 
-The C++ standard library provides no types, no interfaces, and no language
-features for requesting compilation at runtime, representing portable
-intermediate code, or linking and invoking dynamically generated functions.
+The C++ standard library provides no facilities for making JIT compilation
+portable, ergonomic, and type-safe.
 Applications that need JIT compilation must step entirely outside of standard
 C++ and depend on one of the following:
 
-- Compiler-specific C APIs (`libgccjit`, LLVM ORC via LLVM headers).
-- Vendor-specific GPU runtime compilation APIs (NVRTC, OpenCL, SYCL device
-  compilers).
-- OS-specific dynamic loading primitives (`dlopen`/`LoadLibrary`) combined
-  with shelling out to an external compiler process.
+- Compiler-specific C APIs (`libgccjit`, LLVM ORC JIT).
+- Vendor-specific GPU runtime compilation APIs (NVRTC, OpenCL, SYCL).
+- OS-specific dynamic loading primitives (`dlopen`/`LoadLibrary`) combined with process spawning
 - Embedding a language runtime (LLVM, a scripting language, a DSL engine)
   and communicating across the type-system boundary through void pointers or
   string serialization.
@@ -306,7 +294,7 @@ often prohibitive.
 ## Loss of C++ Type and Semantic Information
 
 All current approaches require exiting the C++ type system at the JIT
-boundary. Whether the interface is a source string, an IR module, or a
+boundary. Whether the interface is a source-string, an IR module, or a
 vendor API, the host program and the JIT-compiled code communicate through
 raw function pointers, `void*` buffers, or serialized descriptors. The
 compiler cannot verify that caller and callee agree on the type of data being
@@ -314,7 +302,7 @@ passed. Template instantiations, type aliases, concepts, and overload
 resolution do not cross this boundary. Each specialization is an opaque blob
 from the host program's perspective.
 
-This creates a persistent class of bugs — type mismatches between host and
+This creates a persistent class of bugs - type mismatches between host and
 JIT code — that a standard solution with integrated type representation could
 eliminate entirely.
 
@@ -330,7 +318,7 @@ a target architecture — this repeated frontend work is pure waste.
 
 Without a staged representation that separates AOT-precomputable work
 from runtime specialization, any JIT facility built on top of standard C++ will
-either be too slow for latency-sensitive call sites or will require
+either be too slow for latency-sensitive applications or will require
 non-standard, implementation-specific pre-compilation pipelines.
 
 The model must support **fast incremental specialization**: after an initial
@@ -349,13 +337,12 @@ and every application solves the problem independently. The costs compound:
 - **Tooling blindness**: debuggers, sanitizers, profilers, and static analysis
   tools have no standard way to understand JIT-compiled code, symbol
   resolution, or the provenance of dynamically generated machine code.
-- **Duplicated effort**: NVRTC, ORC JIT wrappers, SYCL compilation pipelines,
-  and in-house JIT layers all solve the same underlying problem — runtime code
-  specialization — without interoperability or shared abstractions.
+- **Duplicated effort**: NVRTC, ORC JIT, SYCL, and in-house JIT layers all solve the same underlying problem — runtime code
+  specialization - without interoperability or shared abstractions.
 
 ## The Ecosystem Consequence
 
-The cumulative effect is that C++ has become unsuitable as an authoring
+The cumulative effect is that C++ can be difficult to use as an authoring
 language for applications that require first-class JIT. The standard does not
 provide the primitives; every workaround is costly, non-portable, and
 invisible to standard tooling. Developers working in domains where JIT is
@@ -369,6 +356,17 @@ providing standard abstractions that allow C++ programs to express, control,
 and interoperate with JIT compilation in a portable, type-safe, and tooling-
 aware manner.
 
+# Intended Outcomes
+
+- Establishes consensus that portable, first-class JIT support is an important
+  gap for modern C++ workloads.
+- Captures shared terminology and problem framing that can be reused in future
+  design papers.
+- Identifies the key constraints a future solution must satisfy (portability,
+  type-safety, support for incremental compilation, and tooling visibility).
+- Documents existing practice and prior art sufficiently to justify exploration.
+- Provides a clear basis for follow-on proposal work, without committing this
+  paper to a specific technical interface.
 
 
 ## Authoring Note
@@ -376,5 +374,4 @@ aware manner.
 This paper was written by the authors with AI-assistance.
 
 # Acknowledgements
-
-<!-- TODO: Acknowledge contributors and reviewers. -->
+- Mark Hoemmen for providing feedback and helping review the paper
